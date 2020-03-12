@@ -11,6 +11,9 @@
 #define PIPE(fd) socketpair(AF_UNIX, SOCK_STREAM, PF_UNIX, fd)
 
 
+int starting_bid, minimum_increment,number_of_bidders;
+    
+
 typedef struct input
 {
     char executable[20];
@@ -25,7 +28,6 @@ int parent(int p1[],int p2[]);
 
 
 int main(){
-    int starting_bid, minimum_increment,number_of_bidders;
     scanf("%d %d %d", &starting_bid, &minimum_increment, &number_of_bidders);
 
     printf("1 : %d, 2 : %d , 3: %d \n",starting_bid, minimum_increment, number_of_bidders);
@@ -34,19 +36,19 @@ int main(){
     for(int i = 0 ; i<number_of_bidders; i++){
         printf("Scanning...\n");
         scanf(" %s", bidders[i].executable);
-        scanf(" %d", &bidders[i].numberOfArgs);
         scanf(" %[^\n]s",bidders[i].args);
-
     }
 
+    printf("Scanning ended\n");
     int pipe1[2];
     int pipe2[2];
 
     PIPE(pipe1);
     PIPE(pipe2);
-    dup2(pipe1[0],0);
+
+    dup2(pipe1[1],0);
     dup2(pipe1[1],1);
-    dup2(pipe2[0],0);
+    dup2(pipe2[1],0);
     dup2(pipe2[1],1);
     
     int w;
@@ -55,6 +57,9 @@ int main(){
         printf("%d ::  %s ,, %s \n",i,bidders[i].executable, bidders[i].args);
     }
 
+    
+    printf("Starts forking...\n");
+    
     if (fork()) {
 		if (fork()) {
             printf("Parent waiting... \n");
@@ -63,7 +68,7 @@ int main(){
 			wait(&w);
 			wait(&w);
 
-            printf("Parent waiting ended...\nExterminating.");
+            printf("Parent waiting ended...\n Exterminating.");
 		} else {
 			return child(bidders[0],pipe1);
 		}
@@ -94,19 +99,90 @@ int child(input x, int pipe[] ){
 
 int parent(int p1[],int p2[]){
 	struct pollfd pfd[2] = {{ p1[0], POLLIN, 0}, { p2[0], POLLIN, 0}} ;
-    char mess[40];
+    cm* client_message;
+    client_message = (cm*) malloc(sizeof(cm));
     int n = 2,r;
+    
+    int current_bid = starting_bid;
+    int current_bidder = -1;
+    int counter = n;
 
-    while (pfd[0].fd >= 0 || pfd[1].fd >= 0) { /* one still open */
+    while (counter > 0){ // (pfd[0].fd >= 0 || pfd[1].fd >= 0 ){ /* one still open */
 
 		poll(pfd, n, 0);  /* no timeout*/
-		for (int i = 0; i < n; i++) 
+		for (int i = 0; i < n; i++){
 			if (pfd[i].revents && POLLIN) {
-				r = read(pfd[i].fd, mess, 40);
-				if (r == 0) 			/* EOF */
+				r = read(pfd[i].fd, client_message, sizeof(cm));                
+				if (r == 0){
+                    counter--;		/* EOF */
 					pfd[i].fd = -1;   /* poll() ignores pollfd item if fd is negative */
-				else
-					printf("%d: %s\n", i, mess);
-			}
+                }
+                else
+                {
+                    sm * server_message =(sm*) malloc(sizeof(sm));
+
+                    if(client_message->message_id == 1 ){ //client connect
+                   //         ii * in_info = (oi*) malloc(sizeof(ii));
+                            server_message->message_id = 1;
+                            smp * server_parameters = (smp*) malloc(sizeof(smp));
+                            cei * connection_info = (cei*) malloc(sizeof(cei));
+                            connection_info->client_id = i;
+                            connection_info->current_bid = current_bid;
+                            connection_info->minimum_increment = minimum_increment;
+                            connection_info->starting_bid = starting_bid;
+                            server_parameters->start_info = *connection_info;
+                            server_message->params  = *server_parameters;
+                            // in_info->info = *server_parameters;
+                            // in_info->pid = i; //TODO
+                            // in_info->type = 1;
+                            // print_input(in_info,i);
+                            write(pfd[i].fd,server_message,sizeof(sm));
+                            
+                    }
+
+                    else if(client_message->message_id ==2){
+                        int incoming_bid = client_message->params.bid;
+                        server_message->message_id = 2;
+                        smp * server_parameters = (smp*) malloc(sizeof(smp));
+                        bi* bid_info = (bi*) malloc(sizeof(bi));
+                        bid_info->current_bid = current_bid;
+                        if(incoming_bid < starting_bid) // lower than starting
+                            bid_info->result = 1;
+                        else if(incoming_bid < current_bid)
+                            bid_info->result = 2;
+                        else if(current_bid - incoming_bid < minimum_increment)
+                            bid_info->result = 3;
+                        else if(incoming_bid > current_bid)// güzel teklif
+                            bid_info->result = 0;        
+                        else
+                        {
+                            printf("Error on client2");
+                            exit(1);
+                        }
+                                                        
+                        server_message->params = *server_parameters;
+                        server_parameters->result_info = *bid_info;
+                        write(pfd[i].fd,server_message,sizeof(sm));
+
+                    }
+
+                    else if(client_message->message_id = 3){
+                        counter--;
+                        smp * server_parameters = (smp*) malloc(sizeof(smp));
+                        wi * winner_info = (wi*) malloc(sizeof(wi));
+                        winner_info->winner_id = current_bidder;
+                        winner_info->winning_bid = current_bid;
+                        server_parameters->winner_info   = * winner_info;
+                        server_message ->params = *server_parameters;
+
+                        if(counter == 0){ // time to finish
+                            for(int x = 0 ; x<n ; x++){
+                                write(pfd[i].fd,server_message,sizeof(sm));
+                            }
+                        }
+                    }    
+			    }
+            }
+        }
 	}
 }
