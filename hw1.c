@@ -8,11 +8,12 @@
 #include<poll.h>
 #include "logging.h"
 #include "message.h"
+
 #define PIPE(fd) socketpair(AF_UNIX, SOCK_STREAM, PF_UNIX, fd)
 
 
 int starting_bid, minimum_increment,number_of_bidders;
-    
+int pr1,pr2;    
 
 typedef struct input
 {
@@ -42,26 +43,26 @@ int main(){
     printf("Scanning ended\n");
     int pipe1[2];
     int pipe2[2];
-
-    PIPE(pipe1);
-    PIPE(pipe2);
-
-    dup2(pipe1[1],0);
-    dup2(pipe1[1],1);
-    dup2(pipe2[1],0);
-    dup2(pipe2[1],1);
     
     int w;
+
+    
 
     for( int i = 0 ; i< number_of_bidders; i++){
         printf("%d ::  %s ,, %s \n",i,bidders[i].executable, bidders[i].args);
     }
 
+    PIPE(pipe1);
+    PIPE(pipe2);
+
+    printf("Pipe created & dupped \n");
+
     
     printf("Starts forking...\n");
     
-    if (fork()) {
-		if (fork()) {
+    
+    if (pr1 = fork()) {
+		if (pr2 = fork()) {
             printf("Parent waiting... \n");
 
             parent(pipe1,pipe2);
@@ -70,9 +71,11 @@ int main(){
 
             printf("Parent waiting ended...\n Exterminating.");
 		} else {
+            printf("Child1 \n");
 			return child(bidders[0],pipe1);
 		}
 	} else {
+            printf("Child2\n");
 			return child(bidders[1], pipe2);
 	}
 
@@ -82,7 +85,7 @@ int main(){
 int execute(input x){
     char* args[3];
     args[0] = x.executable;
-    args[1] = x.args;
+    args[1] = "2000";
     args[2] = NULL;
 
     printf("now executing %s \n",args[0]);
@@ -93,11 +96,13 @@ int execute(input x){
 
 
 int child(input x, int pipe[] ){
+
     printf("Inside child \n" );
     execute(x);
 }
 
 int parent(int p1[],int p2[]){
+
 	struct pollfd pfd[2] = {{ p1[0], POLLIN, 0}, { p2[0], POLLIN, 0}} ;
     cm* client_message;
     client_message = (cm*) malloc(sizeof(cm));
@@ -122,7 +127,14 @@ int parent(int p1[],int p2[]){
                     sm * server_message =(sm*) malloc(sizeof(sm));
 
                     if(client_message->message_id == 1 ){ //client connect
-                   //         ii * in_info = (oi*) malloc(sizeof(ii));
+                            ii * in_info = (ii*) malloc(sizeof(ii));
+                            in_info->pid = pr1;
+                            in_info->type = 1;
+                            cmp * client_parameters = (cmp*) malloc(sizeof(cmp));
+                            client_parameters ->delay = 2000;
+                            in_info ->info = * client_parameters;
+                            print_input(in_info,i);
+
                             server_message->message_id = 1;
                             smp * server_parameters = (smp*) malloc(sizeof(smp));
                             cei * connection_info = (cei*) malloc(sizeof(cei));
@@ -132,15 +144,20 @@ int parent(int p1[],int p2[]){
                             connection_info->starting_bid = starting_bid;
                             server_parameters->start_info = *connection_info;
                             server_message->params  = *server_parameters;
-                            // in_info->info = *server_parameters;
-                            // in_info->pid = i; //TODO
-                            // in_info->type = 1;
-                            // print_input(in_info,i);
+
                             write(pfd[i].fd,server_message,sizeof(sm));
                             
+                            oi * out_info = (oi*) malloc(sizeof(oi));
+                            out_info ->pid  = pr1;
+                            out_info->type = 1;
+                            out_info ->info = * server_parameters;
+                            print_output(out_info,i);
                     }
 
                     else if(client_message->message_id ==2){
+                        
+
+
                         int incoming_bid = client_message->params.bid;
                         server_message->message_id = 2;
                         smp * server_parameters = (smp*) malloc(sizeof(smp));
