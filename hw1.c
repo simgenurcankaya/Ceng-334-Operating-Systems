@@ -29,81 +29,76 @@ int parent(int p1[],int p2[]);
 
 
 int main(){
+
     scanf("%d %d %d", &starting_bid, &minimum_increment, &number_of_bidders);
 
     printf("1 : %d, 2 : %d , 3: %d \n",starting_bid, minimum_increment, number_of_bidders);
-
+/* 
     input bidders[number_of_bidders];
     for(int i = 0 ; i<number_of_bidders; i++){
-        printf("Scanning...\n");
+        //printf("Scanning...\n");
         scanf(" %s", bidders[i].executable);
         scanf(" %[^\n]s",bidders[i].args);
     }
+ */
+    printf("Bidders ended\n");
 
-    printf("Scanning ended\n");
-    int pipe1[2];
-    int pipe2[2];
-    
-    int w;
+    pid_t pid = getpid();
 
-    
+  printf("Parent pid: %lun\n", pid);
 
-    for( int i = 0 ; i< number_of_bidders; i++){
-        printf("%d ::  %s ,, %s \n",i,bidders[i].executable, bidders[i].args);
+    int ** pipes = malloc(number_of_bidders* sizeof(int*));
+
+    for(int i = 0 ; i< number_of_bidders ; i++){
+
+        pid_t pidx = getpid();
+
+        printf("inside for, i = %d , pid: %lun\n",i, pidx);
+
+        int * pipe = malloc(2* sizeof(int));
+        pipes[i] = pipe;
+
+
+        PIPE(pipe);
+
+        int pid = fork();
+
+        if (pid == -1){
+            perror("fork error");
+            exit(0);
+        }
+
+        if(pid == 0){ // Child
+            for(int j  = 0; j<i;j++)
+                close(pipes[j][1]);
+            dup2(pipe[0],0);
+            dup2(pipe[1],1);
+//            close(pipe[0]);
+            char* args[3];
+            args[0] = "./PatternBidder";
+            args[1] = "4 100 0 1 2";
+            args[2] = NULL;
+
+            printf("now executing %s \n",args[0]);
+            execv(args[0],args); 
+                
+        }
+
+        printf("Child %d 's PID : %lu \n",i,pid);
+
+
+        //parent does nothing in the loop
     }
 
-    PIPE(pipe1);
-    PIPE(pipe2);
+    // only parent continues here
+    pid_t pidx = getpid();
+    printf("inside parent %lu \n", pidx);
+    struct pollfd pfd[number_of_bidders];
+    for(int x = 0; x<number_of_bidders; x++){
+        struct pollfd pdf = {*pipes[x],POLLIN,0};
+        pfd[x] = pdf;
+    }
 
-    printf("Pipe created & dupped \n");
-
-    
-    printf("Starts forking...\n");
-    
-    
-    if (pr1 = fork()) {
-		if (pr2 = fork()) {
-            printf("Parent waiting... \n");
-
-            parent(pipe1,pipe2);
-			wait(&w);
-			wait(&w);
-
-            printf("Parent waiting ended...\n Exterminating.");
-		} else {
-            printf("Child1 \n");
-			return child(bidders[0],pipe1);
-		}
-	} else {
-            printf("Child2\n");
-			return child(bidders[1], pipe2);
-	}
-
-    return 0;
-}
-
-int execute(input x){
-    char* args[3];
-    args[0] = x.executable;
-    args[1] = "2000";
-    args[2] = NULL;
-
-    printf("now executing %s \n",args[0]);
-    execv(args[0],args); 
-    printf("execution ended");
-    return 0;
-}
-
-
-int child(input x, int pipe[] ){
-
-    printf("Inside child \n" );
-    execute(x);
-}
-
-int parent(int p1[],int p2[]){
-
-	struct pollfd pfd[2] = {{ p1[0], POLLIN, 0}, { p2[0], POLLIN, 0}} ;
     cm* client_message;
     client_message = (cm*) malloc(sizeof(cm));
     int n = 2,r;
@@ -111,13 +106,13 @@ int parent(int p1[],int p2[]){
     int current_bid = starting_bid;
     int current_bidder = -1;
     int counter = n;
-
+    int simge;
     while (counter > 0){ // (pfd[0].fd >= 0 || pfd[1].fd >= 0 ){ /* one still open */
 
 		poll(pfd, n, 0);  /* no timeout*/
 		for (int i = 0; i < n; i++){
 			if (pfd[i].revents && POLLIN) {
-				r = read(pfd[i].fd, client_message, sizeof(cm));                
+				r = read(pfd[i].fd , client_message, sizeof(cm));                
 				if (r == 0){
                     counter--;		/* EOF */
 					pfd[i].fd = -1;   /* poll() ignores pollfd item if fd is negative */
@@ -173,7 +168,7 @@ int parent(int p1[],int p2[]){
                             bid_info->result = 0;        
                         else
                         {
-                            printf("Error on client2");
+                            //printf("Error on client2");
                             exit(1);
                         }
                                                         
@@ -202,4 +197,18 @@ int parent(int p1[],int p2[]){
             }
         }
 	}
+
+    for(int i = 0 ; i < number_of_bidders ; i++)
+        wait(&simge);
+
+
+}
+
+
+
+
+int execute(input x){
+
+    //printf("execution ended");
+    return 0;
 }
