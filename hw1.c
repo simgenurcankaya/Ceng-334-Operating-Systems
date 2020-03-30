@@ -45,7 +45,7 @@ int main(){
 
     pid_t pid = getpid();
 
-  printf("Parent pid: %lun\n", pid);
+  printf("Parent pid: %d \n", pid);
 
     int ** pipes = malloc(number_of_bidders* sizeof(int*));
 
@@ -53,7 +53,7 @@ int main(){
 
         pid_t pidx = getpid();
 
-        printf("inside for, i = %d , pid: %lun\n",i, pidx);
+        printf("inside for, i = %d , pid: %d \n",i, pidx);
 
         int * pipe = malloc(2* sizeof(int));
         pipes[i] = pipe;
@@ -71,6 +71,8 @@ int main(){
         if(pid == 0){ // Child
             for(int j  = 0; j<i;j++)
                 close(pipes[j][1]);
+
+            printf("executing...\n");  
             dup2(pipe[0],0);
             dup2(pipe[1],1);
 //            close(pipe[0]);
@@ -84,7 +86,7 @@ int main(){
                 
         }
 
-        printf("Child %d 's PID : %lu \n",i,pid);
+        printf("Child %d 's PID : %d \n",i,pid);
 
 
         //parent does nothing in the loop
@@ -92,41 +94,56 @@ int main(){
 
     // only parent continues here
     pid_t pidx = getpid();
-    printf("inside parent %lu \n", pidx);
-    struct pollfd pfd[number_of_bidders];
+    printf("\n\ninside parent \n");
+    struct pollfd read_pipes[number_of_bidders];
+    struct pollfd write_pipes[number_of_bidders];
     for(int x = 0; x<number_of_bidders; x++){
-        struct pollfd pdf = {*pipes[x],POLLIN,0};
-        pfd[x] = pdf;
+        //struct pollfd pdf ;
+        // pdf.fd = pipes[x][0];
+        // pdf.events = POLLIN;
+        // pdf.revents = 0;
+        struct pollfd pdf = {pipes[x][0],POLLIN,0};
+        struct pollfd pfd = {pipes[x][1],POLLIN,0};
+        read_pipes[x] = pdf;
+        write_pipes[x] = pfd;
     }
 
-    cm* client_message;
-    client_message = (cm*) malloc(sizeof(cm));
-    int n = 2,r;
     
+    //client_message = (cm) malloc(sizeof(cm));
+    int n ,r;
+    n = number_of_bidders;
     int current_bid = starting_bid;
     int current_bidder = -1;
     int counter = n;
     int simge;
     while (counter > 0){ // (pfd[0].fd >= 0 || pfd[1].fd >= 0 ){ /* one still open */
 
-		poll(pfd, n, 0);  /* no timeout*/
+		//poll(read_pipes, n, 0);  /* no timeout*/
 		for (int i = 0; i < n; i++){
-			if (pfd[i].revents && POLLIN) {
-				r = read(pfd[i].fd , client_message, sizeof(cm));                
-				if (r == 0){
+			if (1){//read_pipes[i].revents && POLLIN) {
+                printf("i = %d ,current bet %d, current bidder %d, n %d, counter %d \n", i ,current_bid, current_bidder, n, counter);
+                
+                cm batu;
+				r = read(pipes[0][0] , &batu, sizeof(cm));     
+                printf("Client message id:  %d\n",batu.message_id); 
+                if (r == 0){
+                    printf("r == 0 \n");
                     counter--;		/* EOF */
-					pfd[i].fd = -1;   /* poll() ignores pollfd item if fd is negative */
+					read_pipes[i].fd = -1;   /* poll() ignores pollfd item if fd is negative */
                 }
                 else
                 {
+                    printf("r = %d \n",r);
                     sm * server_message =(sm*) malloc(sizeof(sm));
 
-                    if(client_message->message_id == 1 ){ //client connect
+                    if(batu.message_id == 1 ){ //client connect
+        
+                            printf("connect message received\n");
                             ii * in_info = (ii*) malloc(sizeof(ii));
                             in_info->pid = pr1;
                             in_info->type = 1;
                             cmp * client_parameters = (cmp*) malloc(sizeof(cmp));
-                            client_parameters ->delay = 2000;
+                            client_parameters ->delay = 500;
                             in_info ->info = * client_parameters;
                             print_input(in_info,i);
 
@@ -140,7 +157,7 @@ int main(){
                             server_parameters->start_info = *connection_info;
                             server_message->params  = *server_parameters;
 
-                            write(pfd[i].fd,server_message,sizeof(sm));
+                            write(pipes[i][1],server_message,sizeof(sm));
                             
                             oi * out_info = (oi*) malloc(sizeof(oi));
                             out_info ->pid  = pr1;
@@ -149,11 +166,12 @@ int main(){
                             print_output(out_info,i);
                     }
 
-                    else if(client_message->message_id ==2){
+                    else if(batu.message_id ==2){
                         
+                        printf("client bid recived\n");
 
 
-                        int incoming_bid = client_message->params.bid;
+                        int incoming_bid = batu.params.bid;
                         server_message->message_id = 2;
                         smp * server_parameters = (smp*) malloc(sizeof(smp));
                         bi* bid_info = (bi*) malloc(sizeof(bi));
@@ -174,11 +192,12 @@ int main(){
                                                         
                         server_message->params = *server_parameters;
                         server_parameters->result_info = *bid_info;
-                        write(pfd[i].fd,server_message,sizeof(sm));
+                        write(pipes[i][1],server_message,sizeof(sm));
 
                     }
 
-                    else if(client_message->message_id = 3){
+                    else if(batu.message_id == 3){
+                        printf("client finish received\n");
                         counter--;
                         smp * server_parameters = (smp*) malloc(sizeof(smp));
                         wi * winner_info = (wi*) malloc(sizeof(wi));
@@ -189,18 +208,25 @@ int main(){
 
                         if(counter == 0){ // time to finish
                             for(int x = 0 ; x<n ; x++){
-                                write(pfd[i].fd,server_message,sizeof(sm));
+                                write(pipes[i][1],server_message,sizeof(sm));
                             }
                         }
+                    }
+                    else{
+                        printf("Error occured. Message id received : %d\n", batu.message_id);
                     }    
 			    }
             }
         }
 	}
 
+    printf("counter ended. waiting for child \n");
+
     for(int i = 0 ; i < number_of_bidders ; i++)
         wait(&simge);
 
+    printf("Child ended \n");
+    exit(1);
 
 }
 
