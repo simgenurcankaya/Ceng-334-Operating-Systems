@@ -17,31 +17,31 @@ int pr1,pr2;
 
 typedef struct input
 {
-    char executable[20];
-    int numberOfArgs;
-    char args[20];
-    /* data */
+    char exec[20];
+    char input[30];
 }input;
-
-int execute(input);
-int child(input x, int pipe[]);
-int parent(int p1[],int p2[]);
-
 
 int main(){
 
     scanf("%d %d %d", &starting_bid, &minimum_increment, &number_of_bidders);
 
     printf("1 : %d, 2 : %d , 3: %d \n",starting_bid, minimum_increment, number_of_bidders);
-/* 
+ 
     input bidders[number_of_bidders];
     for(int i = 0 ; i<number_of_bidders; i++){
-        //printf("Scanning...\n");
-        scanf(" %s", bidders[i].executable);
-        scanf(" %[^\n]s",bidders[i].args);
+        printf("Scanning...\n");
+        input temp;
+        scanf(" %s", temp.exec);
+        scanf(" %[^\n]s",temp.input);
+        printf("agabee");
+        bidders[i] = temp;
     }
- */
+ 
     printf("Bidders ended\n");
+
+    for(int i = 0 ; i< number_of_bidders; i++){
+        printf("Bidder %i : exec: %s , inp : '%s'\n",i,bidders[i].exec,bidders[i].input);
+    }
 
     pid_t pid = getpid();
 
@@ -69,19 +69,19 @@ int main(){
         }
 
         if(pid == 0){ // Child
-            for(int j  = 0; j<i;j++)
-                close(pipes[j][1]);
+        //     for(int j  = 0; j<i;j++)
+        //         close(pipes[j][1]);
 
-            printf("executing...\n");  
-            dup2(pipe[0],0);
-            dup2(pipe[1],1);
-//            close(pipe[0]);
             char* args[3];
-            args[0] = "./PatternBidder";
-            args[1] = "4 100 0 1 2";
+            args[0] = bidders[i].exec;
+            args[1] = bidders[i].input;
             args[2] = NULL;
 
             printf("now executing %s \n",args[0]);
+
+            dup2(pipe[0],0);
+            dup2(pipe[1],1);
+//            close(pipe[0]);
             execv(args[0],args); 
                 
         }
@@ -123,9 +123,9 @@ int main(){
 			if (1){//read_pipes[i].revents && POLLIN) {
                 printf("i = %d ,current bet %d, current bidder %d, n %d, counter %d \n", i ,current_bid, current_bidder, n, counter);
                 
-                cm batu;
-				r = read(pipes[0][0] , &batu, sizeof(cm));     
-                printf("Client message id:  %d\n",batu.message_id); 
+                cm clientmessage;
+				r = read(pipes[i][0] , &clientmessage, sizeof(cm));     
+                printf("Client message id:  %d \n", clientmessage.message_id ); 
                 if (r == 0){
                     printf("r == 0 \n");
                     counter--;		/* EOF */
@@ -136,7 +136,7 @@ int main(){
                     printf("r = %d \n",r);
                     sm * server_message =(sm*) malloc(sizeof(sm));
 
-                    if(batu.message_id == 1 ){ //client connect
+                    if(clientmessage.message_id == 1 ){ //client connect
         
                             printf("connect message received\n");
                             ii * in_info = (ii*) malloc(sizeof(ii));
@@ -166,12 +166,12 @@ int main(){
                             print_output(out_info,i);
                     }
 
-                    else if(batu.message_id ==2){
+                    else if(clientmessage.message_id ==2){
                         
                         printf("client bid recived\n");
 
 
-                        int incoming_bid = batu.params.bid;
+                        int incoming_bid = clientmessage.params.bid;
                         server_message->message_id = 2;
                         smp * server_parameters = (smp*) malloc(sizeof(smp));
                         bi* bid_info = (bi*) malloc(sizeof(bi));
@@ -196,7 +196,7 @@ int main(){
 
                     }
 
-                    else if(batu.message_id == 3){
+                    else if(clientmessage.message_id == 3){
                         printf("client finish received\n");
                         counter--;
                         smp * server_parameters = (smp*) malloc(sizeof(smp));
@@ -213,7 +213,7 @@ int main(){
                         }
                     }
                     else{
-                        printf("Error occured. Message id received : %d\n", batu.message_id);
+                        printf("Error occured. Message id received : %d\n", clientmessage.message_id);
                     }    
 			    }
             }
