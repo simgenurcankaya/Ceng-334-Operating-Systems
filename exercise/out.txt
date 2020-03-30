@@ -1,0 +1,3 @@
+Arg1 : 3 , Arg2 : 4 
+Summation is 7. Terminating...
+Parent & child terminated.
