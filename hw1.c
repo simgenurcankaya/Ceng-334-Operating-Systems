@@ -28,20 +28,22 @@ int main(){
     printf("1 : %d, 2 : %d , 3: %d \n",starting_bid, minimum_increment, number_of_bidders);
  
     input bidders[number_of_bidders];
-    for(int i = 0 ; i<number_of_bidders; i++){
-        printf("Scanning...\n");
-        input temp;
-        scanf(" %s", temp.exec);
-        scanf(" %[^\n]s",temp.input);
-        printf("agabee");
-        bidders[i] = temp;
-    }
+    // for(int i = 0 ; i<number_of_bidders; i++){
+    //     printf("Scanning...\n");
+    //     input temp;
+    //     int s;
+    //     scanf(" %s", temp.exec);
+    //     scanf("%d",&s);
+    //     scanf(" %[^\n]s",temp.input);
+    //     bidders[i] = temp;
+    // }
  
-    printf("Bidders ended\n");
+    // printf("Bidders ended\n");
 
-    for(int i = 0 ; i< number_of_bidders; i++){
-        printf("Bidder %i : exec: %s , inp : '%s'\n",i,bidders[i].exec,bidders[i].input);
-    }
+    // for(int i = 0 ; i< number_of_bidders; i++){
+    //     printf("Bidder %i : exec: %s , inp : '%s'\n",i,bidders[i].exec,bidders[i].input);
+    // }
+
 
     pid_t pid = getpid();
 
@@ -72,16 +74,24 @@ int main(){
         //     for(int j  = 0; j<i;j++)
         //         close(pipes[j][1]);
 
-            char* args[3];
-            args[0] = bidders[i].exec;
-            args[1] = bidders[i].input;
-            args[2] = NULL;
+            // char* args[3];
+            // args[0] = bidders[i].exec;
+            // args[1] = bidders[i].input;
+            // args[2] = NULL;
 
+            char* args[6];
+            args[0] = "./PatternBidder";
+            args[1] =  "100";
+            args[2] =  "0";
+            args[3] =  "1";
+            args[4] = "2";
+            args[5] = NULL;
             printf("now executing %s \n",args[0]);
 
-            dup2(pipe[0],0);
+            close(pipe[0]);
+            dup2(pipe[1],0);
             dup2(pipe[1],1);
-//            close(pipe[0]);
+		    close(pipe[1]);
             execv(args[0],args); 
                 
         }
@@ -95,8 +105,12 @@ int main(){
     // only parent continues here
     pid_t pidx = getpid();
     printf("\n\ninside parent \n");
+
+   
+
     struct pollfd read_pipes[number_of_bidders];
     struct pollfd write_pipes[number_of_bidders];
+    int isFirst[number_of_bidders];
     for(int x = 0; x<number_of_bidders; x++){
         //struct pollfd pdf ;
         // pdf.fd = pipes[x][0];
@@ -106,7 +120,21 @@ int main(){
         struct pollfd pfd = {pipes[x][1],POLLIN,0};
         read_pipes[x] = pdf;
         write_pipes[x] = pfd;
+        isFirst[x]= 0;
+        
     }
+
+     printf("before pipe stuff \n");
+
+    for(int x = 0; x < number_of_bidders; x++){
+        close(pipes[x][1]);
+		//dup2(pipes[x][0],0);
+		//dup2(pipes[x][0],1);
+		//close(pipes[x][0]);
+    }
+
+
+    printf("After pipe stuff \n");
 
     
     //client_message = (cm) malloc(sizeof(cm));
@@ -116,16 +144,28 @@ int main(){
     int current_bidder = -1;
     int counter = n;
     int simge;
+
+  //  sleep(2);
+
+
+    
     while (counter > 0){ // (pfd[0].fd >= 0 || pfd[1].fd >= 0 ){ /* one still open */
 
-		//poll(read_pipes, n, 0);  /* no timeout*/
+        //printf("Polling...\n");
+		poll(read_pipes, n, 0);  /* no timeout*/
 		for (int i = 0; i < n; i++){
-			if (1){//read_pipes[i].revents && POLLIN) {
+			if (read_pipes[i].revents && POLLIN) {
+
                 printf("i = %d ,current bet %d, current bidder %d, n %d, counter %d \n", i ,current_bid, current_bidder, n, counter);
                 
                 cm clientmessage;
-				r = read(pipes[i][0] , &clientmessage, sizeof(cm));     
-                printf("Client message id:  %d \n", clientmessage.message_id ); 
+
+                r = read(read_pipes[i].fd, &clientmessage, sizeof(cm));
+                if(r<0){
+                    printf("t read error %d \n",r);
+                    exit(1);
+                }  
+
                 if (r == 0){
                     printf("r == 0 \n");
                     counter--;		/* EOF */
