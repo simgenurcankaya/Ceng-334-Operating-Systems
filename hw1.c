@@ -148,6 +148,8 @@ int main(){
   //  sleep(2);
 
 
+    //TODO send message correctly
+    //TODO fix input 
     
     while (counter > 0){ // (pfd[0].fd >= 0 || pfd[1].fd >= 0 ){ /* one still open */
 

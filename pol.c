@@ -18,7 +18,19 @@
 
 void server(int p1[], int p2[])
 {
-	struct pollfd pfd[2] = {{ p1[0], POLLIN, 0}, { p2[0], POLLIN, 0}} ;
+	struct pollfd pfd[2];// = {{ p1[0], POLLIN, 0}, { p2[0], POLLIN, 0}} ;
+	for(int i = 0 ; i<2 ; i++){
+		struct pollfd pdf;
+		if(i == 0){
+			struct pollfd pdf =  { p1[0], POLLIN, 0};
+			pfd[0] = pdf;
+
+		}
+		else{
+			struct pollfd pdf = { p2[0], POLLIN, 0};
+			pfd[1] = pdf;
+		}
+	}
 	char mess[40];
 	int  r, n, i ;
 
