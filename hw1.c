@@ -1,6 +1,7 @@
 #include<stdio.h> 
 #include<stdlib.h> 
 #include<unistd.h> 
+#include <string.h>
 #include<sys/types.h> 
 #include<string.h> 
 #include<sys/wait.h> 
@@ -18,31 +19,69 @@ int pr1,pr2;
 typedef struct input
 {
     char exec[20];
-    char input[30];
+    int number_of_inp;
+    int arg[20];
+
 }input;
+
+
+ /* reverse:  reverse string s in place */
+ void reverse(char s[])
+ {
+     int i, j;
+     char c;
+
+     for (i = 0, j = strlen(s)-1; i<j; i++, j--) {
+         c = s[i];
+         s[i] = s[j];
+         s[j] = c;
+     }
+}  
+
+ /* itoa:  convert n to characters in s */
+ void itoa(int n, char s[])
+ {
+     int i, sign;
+
+     if ((sign = n) < 0)  /* record sign */
+         n = -n;          /* make n positive */
+     i = 0;
+     do {       /* generate digits in reverse order */
+         s[i++] = n % 10 + '0';   /* get next digit */
+     } while ((n /= 10) > 0);     /* delete it */
+     if (sign < 0)
+         s[i++] = '-';
+     s[i] = '\0';
+     reverse(s);
+}  
 
 int main(){
 
     scanf("%d %d %d", &starting_bid, &minimum_increment, &number_of_bidders);
 
-    printf("1 : %d, 2 : %d , 3: %d \n",starting_bid, minimum_increment, number_of_bidders);
+    printf("start : %d, increment : %d , #bidders: %d \n",starting_bid, minimum_increment, number_of_bidders);
  
     input bidders[number_of_bidders];
-    // for(int i = 0 ; i<number_of_bidders; i++){
-    //     printf("Scanning...\n");
-    //     input temp;
-    //     int s;
-    //     scanf(" %s", temp.exec);
-    //     scanf("%d",&s);
-    //     scanf(" %[^\n]s",temp.input);
-    //     bidders[i] = temp;
-    // }
+     for(int i = 0 ; i<number_of_bidders; i++){
+        printf("Scanning...\n");
+        input temp;
+        int s;
+        scanf(" %s", temp.exec);
+        scanf(" %d",&temp.number_of_inp);
+        
+        s =  temp.number_of_inp ;
+        for(int j = 0; j<s;j++){
+            scanf("%d" , &(temp.arg[j]));
+        }
+        //scanf(" %[^\n]s",temp.input);
+        bidders[i] = temp;
+    }
  
-    // printf("Bidders ended\n");
+    printf("Bidders ended\n");
 
-    // for(int i = 0 ; i< number_of_bidders; i++){
-    //     printf("Bidder %i : exec: %s , inp : '%s'\n",i,bidders[i].exec,bidders[i].input);
-    // }
+    for(int i = 0 ; i< number_of_bidders; i++){
+        printf("Bidder %i : exec: %s , inp : '%d'\n",i,bidders[i].exec,bidders[i].arg[0]);
+    }
 
 
     pid_t pid = getpid();
@@ -74,25 +113,31 @@ int main(){
         //     for(int j  = 0; j<i;j++)
         //         close(pipes[j][1]);
 
-            // char* args[3];
-            // args[0] = bidders[i].exec;
-            // args[1] = bidders[i].input;
-            // args[2] = NULL;
+            printf("----------------- Inside child i : %d , bidders[i] : %d \n", i , bidders[i].number_of_inp);
 
-            char* args[6];
-            args[0] = "./PatternBidder";
-            args[1] =  "100";
-            args[2] =  "0";
-            args[3] =  "1";
-            args[4] = "2";
-            args[5] = NULL;
+            int number_of_args = bidders[i].number_of_inp +2;
+            char* args[number_of_args];
+            args[0] = bidders[i].exec;
+            printf(" ------------------ ? ---------------- \n");
+            for(int ttyx = 1; ttyx <= bidders[i].number_of_inp; ttyx++){
+                printf("Stringe cevriliyor : %d\n", bidders[i].arg[ttyx-1]);
+               // sprintf( args[ttyx],"%d", bidders[i].arg[ttyx-1]);
+                char* f;
+                itoa(bidders[i].arg[ttyx-1],f);
+                printf("scanned : %s \n",f);
+                args[ttyx] = f;
+            }
+            args[number_of_args-1] = NULL;
+            
+            
             printf("now executing %s \n",args[0]);
-
+            printf("----------------- you will never be alone \n");
             close(pipe[0]);
             dup2(pipe[1],0);
             dup2(pipe[1],1);
 		    close(pipe[1]);
             execv(args[0],args); 
+            exit(1);
                 
         }
 
@@ -149,7 +194,6 @@ int main(){
 
 
     //TODO send message correctly
-    //TODO fix input 
     
     while (counter > 0){ // (pfd[0].fd >= 0 || pfd[1].fd >= 0 ){ /* one still open */
 
@@ -164,7 +208,7 @@ int main(){
 
                 r = read(read_pipes[i].fd, &clientmessage, sizeof(cm));
                 if(r<0){
-                    printf("t read error %d \n",r);
+                    printf("r read error %d \n",r);
                     exit(1);
                 }  
 
@@ -185,7 +229,7 @@ int main(){
                             in_info->pid = pr1;
                             in_info->type = 1;
                             cmp * client_parameters = (cmp*) malloc(sizeof(cmp));
-                            client_parameters ->delay = 500;
+                            client_parameters ->delay = bidders[i].arg[0];
                             in_info ->info = * client_parameters;
                             print_input(in_info,i);
 
