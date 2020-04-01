@@ -19,7 +19,9 @@ typedef struct input
 {
     char exec[20];
     int number_of_inp;
-    int arg[20];
+    //int arg[20];
+    char args[10][20];
+    int delay;
 
 }input;
 
@@ -70,9 +72,11 @@ int main(){
         
         s =  temp.number_of_inp ;
         for(int j = 0; j<s;j++){
-            scanf("%d" , &(temp.arg[j]));
+            scanf(" %s", temp.args[j]); 
+        //    scanf("%d" , &(temp.arg[j]));
         }
         //scanf(" %[^\n]s",temp.input);
+        temp.delay = atoi(temp.args[0]);
         bidders[i] = temp;
     }
  
@@ -107,17 +111,42 @@ int main(){
 
             //printf("----------------- Inside child i : %d , bidders[i] : %d \n", i , bidders[i].number_of_inp);
 
-            int number_of_args = bidders[i].number_of_inp +2;
-            char* args[number_of_args];
-            args[0] = bidders[i].exec;
+             int number_of_args = bidders[i].number_of_inp +2;
+             char* args[number_of_args];
+             args[0] = bidders[i].exec;
 
-            for(int ttyx = 1; ttyx <= bidders[i].number_of_inp; ttyx++){
-                char* f;
-                itoa(bidders[i].arg[ttyx-1],f);
-                args[ttyx] = f;
-            }
-            args[number_of_args-1] = NULL;
-            
+//             for(int ttyx = 1; ttyx <= bidders[i].number_of_inp; ttyx++){
+//                 char* f;
+// //                itoa(bidders[i].arg[ttyx-1],f);
+//                 char str[10];
+//                 snprintf(str, 10, "%d", bidders[i].arg[ttyx-1]);
+//                 printf(" %d . scanned '%s' \n", ttyx,str);
+//                 strcpy(args[ttyx],str);
+// //                args[ttyx] = str;
+//                 printf("=  '%s' \n", args[1]);
+//             }
+//             args[number_of_args-1] = NULL;
+//             printf("=  '%s' \n", args[1]);
+
+             for(int simgos = 0 ; simgos<bidders[i].number_of_inp; simgos++){
+                 //printf("i : %d , inp[i] : '%s' \n" , simgos, bidders[i].args[simgos]);
+                 args[simgos+1] = bidders[i].args[simgos];
+             }
+             args[number_of_args-1] = NULL;
+
+            // char* args[6];
+            // args[0] = "./PatternBidder";
+            // args[1] =  "100";
+            // args[2] =  "0";
+            // args[3] =  "1";
+            // args[4] = "2";
+            // args[5] = NULL;
+            //exit(1);    
+            // char * args[3];
+            // args[0] = "./PatternBidder";
+            // args[1] = "100 0 1 2";
+            // args[2] = NULL;
+            //exit(1);
             close(pipe[0]);
             dup2(pipe[1],0);
             dup2(pipe[1],1);
@@ -198,7 +227,7 @@ int main(){
                         in_info->pid = pids[i];
                         in_info->type = 1;
                         cmp * client_parameters = (cmp*) malloc(sizeof(cmp));
-                        client_parameters ->delay = bidders[i].arg[0];
+                        client_parameters ->delay = bidders[i].delay;
                         in_info ->info = * client_parameters;
                         print_input(in_info,i);
 
@@ -296,14 +325,14 @@ int main(){
                                 write(pipes[x][0],server_message,sizeof(sm));
 
                                 oi * out_info = (oi*) malloc(sizeof(oi));
-                                out_info ->pid  = pids[i];
+                                out_info ->pid  = pids[x];
                                 out_info->type = 3;
                                 out_info ->info = * server_parameters;
-                                print_output(out_info,i);
+                                print_output(out_info,x);
 
                             }
                             for(int x = 0 ; x<number_of_bidders ; x++){
-                                print_client_finished(i,0,1);
+                                print_client_finished(x,0,1);
                             }                                
                         }
                     }
