@@ -19,7 +19,6 @@ typedef struct input
 {
     char exec[20];
     int number_of_inp;
-    //int arg[20];
     char args[10][20];
     int delay;
 
@@ -39,22 +38,6 @@ typedef struct input
      }
 }  
 
- /* itoa:  convert n to characters in s */
- void itoa(int n, char s[])
- {
-     int i, sign;
-
-     if ((sign = n) < 0)  /* record sign */
-         n = -n;          /* make n positive */
-     i = 0;
-     do {       /* generate digits in reverse order */
-         s[i++] = n % 10 + '0';   /* get next digit */
-     } while ((n /= 10) > 0);     /* delete it */
-     if (sign < 0)
-         s[i++] = '-';
-     s[i] = '\0';
-     reverse(s);
-}  
 
 int main(){
 
@@ -82,9 +65,9 @@ int main(){
  
     //printf("Bidders ended\n");
 
-    for(int i = 0 ; i< number_of_bidders; i++){
-        //printf("Bidder %i : exec: %s , inp : '%d'\n",i,bidders[i].exec,bidders[i].arg[0]);
-    }
+    // for(int i = 0 ; i< number_of_bidders; i++){
+    //     printf("Bidder %i : exec: %s , inp : '%d'\n",i,bidders[i].exec,bidders[i].arg[0]);
+    // }
 
 
     int pids[number_of_bidders];
@@ -109,24 +92,9 @@ int main(){
 
         if(pid == 0){ // Child
 
-            //printf("----------------- Inside child i : %d , bidders[i] : %d \n", i , bidders[i].number_of_inp);
-
              int number_of_args = bidders[i].number_of_inp +2;
              char* args[number_of_args];
              args[0] = bidders[i].exec;
-
-//             for(int ttyx = 1; ttyx <= bidders[i].number_of_inp; ttyx++){
-//                 char* f;
-// //                itoa(bidders[i].arg[ttyx-1],f);
-//                 char str[10];
-//                 snprintf(str, 10, "%d", bidders[i].arg[ttyx-1]);
-//                 printf(" %d . scanned '%s' \n", ttyx,str);
-//                 strcpy(args[ttyx],str);
-// //                args[ttyx] = str;
-//                 printf("=  '%s' \n", args[1]);
-//             }
-//             args[number_of_args-1] = NULL;
-//             printf("=  '%s' \n", args[1]);
 
              for(int simgos = 0 ; simgos<bidders[i].number_of_inp; simgos++){
                  //printf("i : %d , inp[i] : '%s' \n" , simgos, bidders[i].args[simgos]);
@@ -142,11 +110,7 @@ int main(){
             // args[4] = "2";
             // args[5] = NULL;
             //exit(1);    
-            // char * args[3];
-            // args[0] = "./PatternBidder";
-            // args[1] = "100 0 1 2";
-            // args[2] = NULL;
-            //exit(1);
+
             close(pipe[0]);
             dup2(pipe[1],0);
             dup2(pipe[1],1);
@@ -159,10 +123,8 @@ int main(){
             pids[i] = pid;
             //printf("Child %d 's PID : %d \n",i,pid);
         }
-
         //parent does nothing in the loop
     }
-
     // only parent continues here
     pid_t pidx = getpid();
 
@@ -176,7 +138,6 @@ int main(){
         struct pollfd pdf = {pipes[x][0],POLLIN,0};
         struct pollfd pfd = {pipes[x][1],POLLIN,0};
         read_pipes[x] = pdf;
-        
     }
 
     for(int x = 0; x < number_of_bidders; x++){
@@ -203,7 +164,6 @@ int main(){
 			if (read_pipes[i].revents && POLLIN) {
 
                 //printf("i = %d ,current bet %d, current bidder %d, n %d, counter %d \n", i ,current_bid, current_bidder, n, counter);
-                
                 cm clientmessage;
 
                 r = read(read_pipes[i].fd, &clientmessage, sizeof(cm));
@@ -311,7 +271,7 @@ int main(){
                         print_input(in_info,i);
 
                         if(counter == 0){ // time to finish
-                          //  //printf("COUNter == 0\n") ;
+                          //  //printf("Countter == 0\n") ;
                             print_server_finished(current_bidder,current_bid);
                             smp * server_parameters = (smp*) malloc(sizeof(smp));
                             wi * winner_info = (wi*) malloc(sizeof(wi));
@@ -344,12 +304,6 @@ int main(){
         }
 	}
 
-//    printf("counter ended. waiting for child \n");
-
-    // for(int i = 0 ; i < number_of_bidders ; i++)
-    //     wait(&simge);
-
-  //  //printf("Child ended \n");
     exit(1);
 
 }
