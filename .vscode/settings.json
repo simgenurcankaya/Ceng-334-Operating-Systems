@@ -2,6 +2,7 @@
     "files.associations": {
         "logging.h": "c",
         "socket.h": "c",
-        "message.h": "c"
+        "message.h": "c",
+        "string.h": "c"
     }
 }

@@ -1,10 +1,8 @@
 #include<stdio.h> 
 #include<stdlib.h> 
 #include<unistd.h> 
-#include <string.h>
-#include<sys/types.h> 
 #include<string.h> 
-#include<sys/wait.h> 
+#include<signal.h> // for sigquit
 #include<sys/socket.h>
 #include<poll.h>
 #include "logging.h"
@@ -44,7 +42,8 @@ int main(){
     scanf("%d %d %d", &starting_bid, &minimum_increment, &number_of_bidders);
 
     //printf("start : %d, increment : %d , #bidders: %d \n",starting_bid, minimum_increment, number_of_bidders);
- 
+    int simge;
+    
     input bidders[number_of_bidders];
      for(int i = 0 ; i<number_of_bidders; i++){
         //printf("Scanning...\n");
@@ -152,7 +151,6 @@ int main(){
     int current_bid = starting_bid;
     int current_bidder = -1;
     int counter = n;
-    int simge;
 
   //  sleep(2);
     
@@ -283,26 +281,32 @@ int main(){
                             for(int x = 0 ; x<number_of_bidders ; x++){
                                 
                                 write(pipes[x][0],server_message,sizeof(sm));
-
+                                close(pipes[x][0]);
                                 oi * out_info = (oi*) malloc(sizeof(oi));
                                 out_info ->pid  = pids[x];
                                 out_info->type = 3;
                                 out_info ->info = * server_parameters;
                                 print_output(out_info,x);
 
-                            }
-                            for(int x = 0 ; x<number_of_bidders ; x++){
-                                print_client_finished(x,0,1);
-                            }                                
+                            }                              
                         }
                     }
                     else{
                         printf("Error occured. Message id received : %d\n", clientmessage.message_id);
                     }    
 			    }
+                break;
             }
         }
 	}
+
+    // wait(NULL);
+
+    for(int x = 0 ; x<number_of_bidders ; x++){
+        kill(pids[x],SIGQUIT);
+        close(read_pipes[x].fd);
+        print_client_finished(x,0,1);
+    }  
 
     exit(1);
 
