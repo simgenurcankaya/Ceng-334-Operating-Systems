@@ -26,7 +26,20 @@ class ElevatorMonitor:public Monitor{
         currentFloor = 0;
 
     }
-};
+
+
+    int getDirection(){ return direction;}
+    void setDirection(int x){direction= x;}
+
+    int getCurrentWeight() {return currentWeight;}
+    void setCurrentWeight(int x) {currentWeight = x;}
+
+    int getPeopleinQ() {return peopleinQ;}
+    void setPeopleinQ(int x) {peopleinQ = x;}
+
+    int getCurrentFloor() {return currentFloor;}
+    void setCurrentFloor(int x) { currentFloor = x;}
+ };
 
 
 typedef struct Person
@@ -46,10 +59,23 @@ Person *people;
 void elevatorController(){
     Person *peopleQ;
     int peopleServed = 0;
+    int x = 0;
+    int peopleWaiting = 0;
 
 
     while(peopleServed < num_people){
-        if(elMon.)
+        if(elMon.getDirection == 0){
+            while(!peopleWaiting){
+                sleep(idleTime);
+            }
+            Person temp = peopleQ[0];
+            int y = temp.initialFloor;
+            int z = temp.destinationFloor;
+            if(z <y ){
+                //move up
+                while()
+            }
+        }
     }
 
 
