@@ -27,19 +27,17 @@ class ElevatorMonitor:public Monitor{
     int npeopleinQ;
     int * destinations;
     int currentFloor;
+    int nPeopleinElevator;
     
-
-
     Condition canUse;
     Condition waitingPerson;
     struct clist {
-        int cid; /* customer id */
-        int  destination;
+        Person person;
         struct clist *next;
     };
 
     clist *persons, *lastPerson; // queue for customer, last and first member
-
+    Person * inElevator;
 
     public:
     ElevatorMonitor(): canUse(this), waitingPerson(this){
@@ -47,6 +45,13 @@ class ElevatorMonitor:public Monitor{
         direction = 0 ;
         npeopleinQ = 0;
         currentFloor = 0;
+        destinations = new int[person_capacity];
+        for(int i = 0 ; i<person_capacity; i++){
+            destinations[i] = -1;
+        }
+        inElevator = new Person[person_capacity];
+        nPeopleinElevator = 0;
+        
 
     };
 
@@ -63,6 +68,8 @@ class ElevatorMonitor:public Monitor{
     void elevatorUp(){ currentFloor++; direction = 1;}
     void elevatorDown(){ currentFloor--; direction = -1;}
 
+    int getPeopleInQ(){ return npeopleinQ;}
+
     void newPerson(int x){ //add xth person to the Q
     
     __synchronized__;
@@ -70,8 +77,7 @@ class ElevatorMonitor:public Monitor{
     waitingPerson.wait();
 
     clist *newP = new clist;
-    newP->cid = x;
-    newP ->destination = people[x].destinationFloor;
+    newP->person = people[x];
     
     if(npeopleinQ == 0){
         persons = lastPerson = newP;
@@ -86,9 +92,53 @@ class ElevatorMonitor:public Monitor{
     waitingPerson.notifyAll();
     }
 
-    
+    int findPersonOnFloor(int x){
+        clist * temp = persons;
+        for(int i = 0 ; i<npeopleinQ ; i++){
+            if(temp->person.initialFloor == x){
+                return i;
+            }
+            temp = temp->next;
+        }
+        return -1;
+    }
 
-    
+    bool isEligableToEnter(int x){
+        //xth person eliable to the elevator
+        Person p = people[x];
+        return (((p.destinationFloor - p.initialFloor) * direction ) > 0  &&  (p.weight + currentWeight < weight_capacity) && (nPeopleinElevator < person_capacity) );
+    }
+
+    bool isEligableToLeave(){
+        int x = currentFloor;
+        //any person eligable to leave at floor x
+        if(nPeopleinElevator == 0){
+            return false;
+        }
+
+        for(int i = 0; i<person_capacity; i++){
+            Person p = inElevator[i];
+            if(p.destinationFloor == currentFloor){
+                p.destinationFloor == -1;
+                npeopleinQ--;
+            }
+        }
+        return true;
+    }
+
+    void newToElevator(int x){
+        
+        for(int i = 0 ; i< person_capacity; i++){
+            if(inElevator[i].destinationFloor == -1 || nPeopleinElevator == 0){
+                //silinmiş ya da ilk
+                inElevator[i] = people[x];
+                nPeopleinElevator++;
+            }
+        }
+    }
+    Person firstInQ(){
+        return persons->person;
+    }
 
  };
 
@@ -99,17 +149,13 @@ ElevatorMonitor elMon;
 int peopleServed = 0;
 
 void elevatorController(){
-    Person *peopleQ;
-    int x = 0;
-    int peopleWaiting = 0;
-
 
     while(peopleServed < num_people){
         if(elMon.getDirection() == 0){
-            while(!peopleWaiting){
+            while(elMon.getPeopleInQ() == 0 ){
                 sleep(idleTime);
             }
-            Person temp = peopleQ[0];
+            Person temp = elMon.firstInQ();
             int y = temp.initialFloor;
             int z = temp.destinationFloor;
             if(z < y){
@@ -124,12 +170,19 @@ void elevatorController(){
             else{
                 printf("Invalid case.\n");
             }
-            int waitingAtCurrentFloor = findPerson(elMon.getCurrentFloor());
-            if( waitingAtCurrentFloor != -1 ){
-                Person p = people[waitingAtCurrentFloor];
-                if(((p.destinationFloor - p.initialFloor) * elMon.getDirection()) > 0  &&  (p.weight + elMon.getCurrentWeight() < weight_capacity)){
+            
+            if(elMon.isEligableToLeave()){
+                peopleServed++;
+                printf("people left the elevator\n");
+            }
+
+            int waitingAtCurrentFloor = elMon.findPersonOnFloor(elMon.getCurrentFloor());
+
+            if(waitingAtCurrentFloor != -1 ){
+                if(elMon.isEligableToEnter(waitingAtCurrentFloor)){
                     //asansore girebilir
-                    p.initialFloor = -1;
+                    people[waitingAtCurrentFloor].initialFloor = -1;
+                    elMon.newToElevator(waitingAtCurrentFloor);
 
                 } 
             }
