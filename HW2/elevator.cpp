@@ -2,9 +2,6 @@
 #include<stdlib.h>
 #include<unistd.h>
 #include<pthread.h>
-#include<semaphore.h>
-#include<fcntl.h>
-#include<errno.h>
 #include "monitor.h"
 
 
@@ -31,6 +28,8 @@ class ElevatorMonitor:public Monitor{
     
     Condition canUse;
     Condition waitingPerson;
+
+    int currentlyAdding;
     struct clist {
         Person person;
         struct clist *next;
@@ -51,8 +50,8 @@ class ElevatorMonitor:public Monitor{
         }
         inElevator = new Person[person_capacity];
         nPeopleinElevator = 0;
+        currentlyAdding = 0;
         
-
     };
 
 
@@ -65,19 +64,35 @@ class ElevatorMonitor:public Monitor{
     int getCurrentFloor() {return currentFloor;}
     void setCurrentFloor(int x) { currentFloor = x;}
 
-    void elevatorUp(){ currentFloor++; direction = 1;}
-    void elevatorDown(){ currentFloor--; direction = -1;}
+    void elevatorUp(){ currentFloor++; direction = 1; printf("Elevator goes up. Floor: %d",currentFloor);}
+    void elevatorDown(){ currentFloor--; direction = -1; printf("Elevator goes down. Floor: %d",currentFloor);}
 
     int getPeopleInQ(){ return npeopleinQ;}
 
     void newPerson(int x){ //add xth person to the Q
     
-    __synchronized__;
+    printf("Adding %d th person to the Q\n Currently adding %d\n",x,currentlyAdding);
         //
-    waitingPerson.wait();
+
+    while(currentlyAdding != 0){
+        printf("waits condition\n");
+        waitingPerson.wait();
+    }
+    currentlyAdding++;
+    printf("passes condition\n");
 
     clist *newP = new clist;
-    newP->person = people[x];
+    printf("HUMMMMMMMMMMMMMMMMMMMMMMMMM\n");
+    Person p;
+    printf("AMK");
+    p.destinationFloor = people[x].destinationFloor;
+    p.initialFloor = people[x].initialFloor;
+    p.priority = 1;
+    p.weight = people[x].weight;
+    printf("Derdimden kaçakkk\n");
+    newP->person = p;
+    
+    printf("sknt");
     
     if(npeopleinQ == 0){
         persons = lastPerson = newP;
@@ -86,16 +101,18 @@ class ElevatorMonitor:public Monitor{
         lastPerson ->next = newP;
         lastPerson = newP;
     }
-
+    printf("ıdkdıdk");
     npeopleinQ++;
+    printf("Added new person to the Q.\nQ now has %d passangers.\n",npeopleinQ);
 
-    waitingPerson.notifyAll();
+    waitingPerson.notify();
     }
 
     int findPersonOnFloor(int x){
         clist * temp = persons;
         for(int i = 0 ; i<npeopleinQ ; i++){
             if(temp->person.initialFloor == x){
+                printf("There is eligable person in the floor %d \n",x);
                 return i;
             }
             temp = temp->next;
@@ -133,6 +150,7 @@ class ElevatorMonitor:public Monitor{
                 //silinmiş ya da ilk
                 inElevator[i] = people[x];
                 nPeopleinElevator++;
+                printf("Person enters the elevator\nElevator now has %d passangers.\n",nPeopleinElevator);
             }
         }
     }
@@ -148,23 +166,28 @@ ElevatorMonitor elMon;
 
 int peopleServed = 0;
 
-void elevatorController(){
+void *elevatorController(void *){
+
+    printf("ElevatorController starts working\n");
 
     while(peopleServed < num_people){
         if(elMon.getDirection() == 0){
             while(elMon.getPeopleInQ() == 0 ){
-                sleep(idleTime);
+               // printf("Elevator controller waits.\n");
+                usleep(idleTime);
             }
+
+            printf("** Someone in the Q ** \n");
             Person temp = elMon.firstInQ();
             int y = temp.initialFloor;
             int z = temp.destinationFloor;
             if(z < y){
                 //move up
-                sleep(travelTime);
+                usleep(travelTime);
                 elMon.elevatorUp();
             }
             else if(z > y){
-                sleep(travelTime);
+                usleep(travelTime);
                 elMon.elevatorDown();
             }
             else{
@@ -173,6 +196,7 @@ void elevatorController(){
             
             if(elMon.isEligableToLeave()){
                 peopleServed++;
+                usleep(inoutTime);
                 printf("people left the elevator\n");
             }
 
@@ -183,6 +207,7 @@ void elevatorController(){
                     //asansore girebilir
                     people[waitingAtCurrentFloor].initialFloor = -1;
                     elMon.newToElevator(waitingAtCurrentFloor);
+                    usleep(inoutTime);
 
                 } 
             }
@@ -190,26 +215,22 @@ void elevatorController(){
         
     }
 
-
 }
 
-void personCallsTheElevator(int x){
+void* passengerCreator(void * t){
+
+    long x = (long) t;
     
+    elMon.newPerson((int) x);
 
-}
-
-
-
-int findPerson(int x){
-    
-    for(int i = 0; i<num_people; i++){
-        if(people[i].initialFloor == x)
-            return x;
-    }
-    return -1;
+    //sleep(2);   
+    printf("New person %d created\n",x);
 }
 
 int main(){
+
+    pthread_t *passengers, controller;
+ 
 
     scanf("%d %d %d %d %d %d %d", &num_floors, &num_people,&weight_capacity, &person_capacity, &travelTime, &idleTime, &inoutTime);
 
@@ -224,14 +245,26 @@ int main(){
         people[i] = temp;
     }
 
+    passengers = new pthread_t[num_people];
+    printf("Input succesfully taken.\n");   
     for(int i = 0 ; i<num_people; i++){
         Person temp = people[i];
         printf("%d %d %d %d\n", temp.weight,temp.initialFloor, temp.destinationFloor, temp.priority);
+        pthread_create(&(passengers[i]), NULL, passengerCreator, (void *) i);
+
     }
 
+    pthread_create(&controller, NULL, elevatorController, NULL);
 
-    elevatorController();
+    printf("Treads are created.\n");
 
+    for (int i = 0; i < num_people; i++) {
+        pthread_join(passengers[i], NULL);
+    }
 
-    return 1;
+    pthread_join(controller, NULL);
+
+    printf("?\n");
+
+    return 0;
 }
