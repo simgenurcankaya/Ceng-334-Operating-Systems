@@ -127,7 +127,7 @@ class ElevatorMonitor:public Monitor{
         for(int i = 0; i<person_capacity; i++){
             Person p = inElevator[i];
             if(p.destinationFloor == currentFloor){
-                p.destinationFloor == -1;
+                p.priority == -1;
                 npeopleinQ--;
             }
         }
@@ -137,7 +137,7 @@ class ElevatorMonitor:public Monitor{
     void newToElevator(int x){
         printf("adding %dth person to the elevator? \n",x);
         for(int i = 0 ; i< person_capacity; i++){
-            if(inElevator[i].destinationFloor == -1 || nPeopleinElevator == 0){
+            if(inElevator[i].priority == -1 || nPeopleinElevator == 0){
                 //silinmiş ya da ilk
                 inElevator[i] = people[x];
                 nPeopleinElevator++;
@@ -168,7 +168,7 @@ void *elevatorController(void *){
                 usleep(idleTime);
             }
 
-            printf("** Someone in the Q ** \n");
+          //  printf("** Someone in the Q ** \n");
             printf("First in Q = %d \n",elMon.firstInQ());
            // Person temp = people[elMon.firstInQ()];
            // printf("ara beni lütfen ");
@@ -210,7 +210,7 @@ void *elevatorController(void *){
             if(waitingAtCurrentFloor != -1 ){
                 if(elMon.isEligableToEnter(waitingAtCurrentFloor)){
                     //asansore girebilir
-                    //people[waitingAtCurrentFloor].initialFloor = -1;
+                    people[waitingAtCurrentFloor].priority = -1;
                     elMon.newToElevator(waitingAtCurrentFloor);
                     usleep(inoutTime);
 
@@ -248,7 +248,9 @@ int main(){
     for(int i = 0 ; i<num_people; i++){
         Person temp;
         scanf("%d %d %d %d ", &temp.weight,&temp.initialFloor, &temp.destinationFloor, &temp.priority);
+        temp.priority = 0;
         people[i] = temp;
+
     }
 
     passengers = new pthread_t[num_people];
