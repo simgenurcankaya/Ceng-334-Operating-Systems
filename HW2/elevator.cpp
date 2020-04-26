@@ -5,7 +5,7 @@
 #include "monitor.h"
 
 
-    struct Person
+struct Person
 { 
     int weight;
     int initialFloor;
@@ -31,7 +31,8 @@ class ElevatorMonitor:public Monitor{
 
     int currentlyAdding;
     struct clist {
-        Person person;
+       // Person person;
+        int x;
         struct clist *next;
     };
 
@@ -64,8 +65,8 @@ class ElevatorMonitor:public Monitor{
     int getCurrentFloor() {return currentFloor;}
     void setCurrentFloor(int x) { currentFloor = x;}
 
-    void elevatorUp(){ currentFloor++; direction = 1; printf("Elevator goes up. Floor: %d",currentFloor);}
-    void elevatorDown(){ currentFloor--; direction = -1; printf("Elevator goes down. Floor: %d",currentFloor);}
+    void elevatorUp(){ currentFloor++; direction = 1; printf("Elevator goes up. Floor: %d \n",currentFloor);}
+    void elevatorDown(){ currentFloor--; direction = -1; printf("Elevator goes down. Floor: %d \n",currentFloor);}
 
     int getPeopleInQ(){ return npeopleinQ;}
 
@@ -82,18 +83,8 @@ class ElevatorMonitor:public Monitor{
     printf("passes condition\n");
 
     clist *newP = new clist;
-    printf("HUMMMMMMMMMMMMMMMMMMMMMMMMM\n");
-    Person p;
-    printf("AMK");
-    p.destinationFloor = people[x].destinationFloor;
-    p.initialFloor = people[x].initialFloor;
-    p.priority = 1;
-    p.weight = people[x].weight;
-    printf("Derdimden kaçakkk\n");
-    newP->person = p;
-    
-    printf("sknt");
-    
+    newP ->x = x;
+
     if(npeopleinQ == 0){
         persons = lastPerson = newP;
     }
@@ -101,18 +92,18 @@ class ElevatorMonitor:public Monitor{
         lastPerson ->next = newP;
         lastPerson = newP;
     }
-    printf("ıdkdıdk");
     npeopleinQ++;
     printf("Added new person to the Q.\nQ now has %d passangers.\n",npeopleinQ);
 
-    waitingPerson.notify();
+    waitingPerson.notifyAll();
     }
 
     int findPersonOnFloor(int x){
         clist * temp = persons;
         for(int i = 0 ; i<npeopleinQ ; i++){
-            if(temp->person.initialFloor == x){
-                printf("There is eligable person in the floor %d \n",x);
+            Person p = people[temp->x];
+            if(p.initialFloor == x){
+                printf("There is eligable person (%d) in the floor %d \n",i,x);
                 return i;
             }
             temp = temp->next;
@@ -144,7 +135,7 @@ class ElevatorMonitor:public Monitor{
     }
 
     void newToElevator(int x){
-        
+        printf("adding %dth person to the elevator? \n",x);
         for(int i = 0 ; i< person_capacity; i++){
             if(inElevator[i].destinationFloor == -1 || nPeopleinElevator == 0){
                 //silinmiş ya da ilk
@@ -154,8 +145,8 @@ class ElevatorMonitor:public Monitor{
             }
         }
     }
-    Person firstInQ(){
-        return persons->person;
+    int firstInQ(){
+        return persons->x;
     }
 
  };
@@ -178,20 +169,34 @@ void *elevatorController(void *){
             }
 
             printf("** Someone in the Q ** \n");
-            Person temp = elMon.firstInQ();
-            int y = temp.initialFloor;
-            int z = temp.destinationFloor;
-            if(z < y){
+            printf("First in Q = %d \n",elMon.firstInQ());
+           // Person temp = people[elMon.firstInQ()];
+           // printf("ara beni lütfen ");
+            int y = people[elMon.firstInQ()].initialFloor;
+            int z = people[elMon.firstInQ()].destinationFloor;
+            int x = elMon.getCurrentFloor();
+            printf("y = %d , z = %d \n",y,z);   
+            if(x< y){
                 //move up
                 usleep(travelTime);
                 elMon.elevatorUp();
             }
-            else if(z > y){
+            else if(x > y){
                 usleep(travelTime);
                 elMon.elevatorDown();
             }
             else{
-                printf("Invalid case.\n");
+                printf("Else case.\n");
+                if(z > x){
+                    elMon.elevatorUp();
+                }
+                else if(z < x){
+                    elMon.elevatorDown();
+                }
+                else{
+                    printf("Invalid case2\n");
+                }
+
             }
             
             if(elMon.isEligableToLeave()){
@@ -205,12 +210,13 @@ void *elevatorController(void *){
             if(waitingAtCurrentFloor != -1 ){
                 if(elMon.isEligableToEnter(waitingAtCurrentFloor)){
                     //asansore girebilir
-                    people[waitingAtCurrentFloor].initialFloor = -1;
+                    //people[waitingAtCurrentFloor].initialFloor = -1;
                     elMon.newToElevator(waitingAtCurrentFloor);
                     usleep(inoutTime);
 
                 } 
             }
+            elMon.setDirection(0);
         }
         
     }
@@ -236,7 +242,7 @@ int main(){
 
     printf("%d %d %d %d %d %d %d\n", num_floors, num_people,weight_capacity, person_capacity, travelTime, idleTime, inoutTime);
 
-    Person people[num_people];
+    people= new Person[num_people];
 
 
     for(int i = 0 ; i<num_people; i++){
