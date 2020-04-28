@@ -13,6 +13,7 @@ struct Person
     int destinationFloor;
     int pr;
     int priority;
+    int destination; //1 up -1 down
 //    struct Person *nextPerson;
 };
 
@@ -27,6 +28,7 @@ class ElevatorMonitor:public Monitor{
     int npeopleinQ;
     int currentFloor;
     int nPeopleinElevator;
+    int sii;
 
     std::list<int> destinationList;
     
@@ -53,6 +55,7 @@ class ElevatorMonitor:public Monitor{
         inElevator = new Person[person_capacity];
         nPeopleinElevator = 0;
         currentlyAdding = 0;
+        sii = 0;
         
     };
 
@@ -115,14 +118,17 @@ class ElevatorMonitor:public Monitor{
 
     void elevatorUp(){
         direction = 1;
-        printElevatorInfo();
+       // printf("Elev UP ");
+       // printElevatorInfo();
         currentFloor++;  
+        printElevatorInfo();
         
         } //printf("Elevator goes up. Floor: %d \n",currentFloor);}
     void elevatorDown(){
         direction = -1; 
-        printElevatorInfo();
         currentFloor--; 
+        printElevatorInfo();
+
          }  //printf("Elevator goes down. Floor: %d \n",currentFloor);}
 
     int getPeopleInQ(){ return npeopleinQ;}
@@ -149,22 +155,61 @@ class ElevatorMonitor:public Monitor{
         lastPerson ->next = newP;
         lastPerson = newP;
     }
-    npeopleinQ++;
-    people[x].priority = 1;
-    //printf("Added new person to the Q.\nQ now has %d passangers.\n",npeopleinQ);
 
-    updateDestination();
-    printPersonInfo(x,1);
-    //printf("Notiffuu");
+    
+    if(sii == 0){
+        //ilk istek
+        printf("icimden gelmiyo dur dmek\n");
+
+            updateDestination();
+            printPersonInfo(x,1);
+            printElevatorInfo();
+        direction = people[x].destination;
+        sii++;
+         people[x].priority = 1;
+            npeopleinQ++;
+            if(people[x].initialFloor == currentFloor)
+                yolcuAlmaVakti();
+
+    }
+
+    else{
+      //  printf("Nasılzore sana bunları solymek\n");
+        if(direction == people[x].destination && people[x].initialFloor >= currentFloor){
+            printf("benimki can sekiisp ölmemekkk %d\n", currentFloor);
+            people[x].priority = 1;
+            npeopleinQ++;
+            if(people[x].initialFloor == currentFloor)
+                yolcuAlmaVakti();
+
+            updateDestination();
+            printPersonInfo(x,1);
+            printElevatorInfo();
+
+        }
+        else{
+            printf("Terkedilmiş var.... Garibin yüzü gülür mü? \n");
+            terkedilmislerList.push_back(x);
+            people[x].priority = 0;
+        }
+
+        printf("???? \n");
+        
+    }
+
+
     currentlyAdding--;
     waitingPerson.notify();
+    printf("Notiffuu\n");
+    
+    
     }
 
     void updateDestination(){
         destinationList.clear();
         for(int i = 0; i<num_people;i++){
-            if(people[i].priority == 1){
-             //   printf("Person %d is in Q , initial floor %d\n", i,people[i].initialFloor);
+            if(people[i].priority == 1 &&  isEligableToEnter(i)){
+                printf(" Update dest Person %d is in Q , initial floor %d , current : %d , direction %d \n", i,people[i].initialFloor, currentFloor, direction);
                 destinationList.push_back(people[i].initialFloor);
             }
             else if(people[i].priority == 2){
@@ -172,13 +217,16 @@ class ElevatorMonitor:public Monitor{
                 destinationList.push_back(people[i].destinationFloor);
             }
         }
+        if(destinationList.size()>0){
     destinationList.sort();
     destinationList.unique();
     if( * destinationList.begin() == currentFloor)
         destinationList.pop_front();
     }
+    }
 
     void updateNumbers(){
+        printf(" *******************       UPDATİNG NUMBERS \n ");
         npeopleinQ = 0;
         nPeopleinElevator = 0;
         peopleServed =0;
@@ -195,9 +243,9 @@ class ElevatorMonitor:public Monitor{
         if(terkedilmislerList.size()>0){
             terkedilmislerList.unique();
             terkedilmislerList.sort();
-         //   printf("****  Terkedilmiş sayısı:  %d\n ", terkedilmislerList.size());
+            printf("****  Terkedilmiş sayısı:  %d\n ", terkedilmislerList.size());
             for(std::list<int>::iterator i = terkedilmislerList.begin(); i != terkedilmislerList.end(); i++){
-
+                
                 printPersonInfo(*i,1);
              //   printf("priorty  : %d , peopleserved  %d \n", people[*i].priority, peopleServed);
                 destinationList.push_back(people[*i].initialFloor);
@@ -215,73 +263,15 @@ class ElevatorMonitor:public Monitor{
     //    printf(" Q : %d , E: %d , S : %d \n",npeopleinQ,nPeopleinElevator,peopleServed);
 
     }
-    
-
-
-    int findPersonOnFloor(int x){
-        clist * temp = persons;
-        for(int i = 0 ; i<npeopleinQ ; i++){
-            Person p = people[temp->x];
-            if(p.initialFloor == x && p.priority == 0){
-                //printf("There is eligable person (%d) in the floor %d \n",i,x);
-                return i;
-            }
-            temp = temp->next;
-        }
-        return -1;
-    }
 
     bool isEligableToEnter(int x){
         //xth person eliable to the elevator
         Person p = people[x];
        // printf("X : %d  pri: %d ,, %d %d %d ,, %d %d %d ,, %d %d \n",x,p.priority, p.destinationFloor,p.initialFloor,direction,p.weight,currentWeight,weight_capacity,nPeopleinElevator,person_capacity);
         if(p.priority != 1) return false; 
-        return (((p.destinationFloor - p.initialFloor) * direction ) > 0  &&  (p.weight + currentWeight < weight_capacity) && (nPeopleinElevator < person_capacity) );
+        return ( p.destination == direction  &&  (p.weight + currentWeight < weight_capacity) && (nPeopleinElevator < person_capacity) );
     }
 
-    bool isEligableToLeave(){
-        int x = currentFloor;
-        //any person eligable to leave at floor x
-        if(nPeopleinElevator == 0){
-            return false;
-        }
-
-        for(int i = 0; i<person_capacity; i++){
-            Person p = inElevator[i];
-            if(p.destinationFloor == currentFloor){
-                p.priority == -1;
-                nPeopleinElevator--;
-                npeopleinQ--;
-
-                currentWeight -= p.weight;
-                
-                printPersonInfo(p.id,3);
-            }
-        }
-    //    printElevatorInfo();
-        return true;
-    }
-
-    void newToElevator(int x){
-      //  printf("adding %dth person to the elevator? \n",x);
-        for(int i = 0 ; i< person_capacity; i++){
-            printf("%d %d ,,\n",inElevator[i].priority ,nPeopleinElevator); 
-            if(inElevator[i].priority != 1 ){
-                //silinmiş ya da ilk
-                inElevator[i] = people[x];
-                nPeopleinElevator++;
-                currentWeight += people[x].weight;
-                people[x].priority = 1;
-                destinationList.push_back(people[x].destinationFloor);
-                destinationList.sort();
-                destinationList.unique();
-                //printf("Person enters the elevator\nElevator now has %d passangers.\n",nPeopleinElevator);
-                printPersonInfo(x,2);
-          //      printElevatorInfo();
-                break;
-            }
-        }
-    }
     int firstInQ(){
        // return persons->x;
         return * destinationList.begin();
@@ -300,10 +290,10 @@ class ElevatorMonitor:public Monitor{
     void yolcuAlmaVakti(){
         int change = 0;
         for(int i = 0 ; i < num_people; i++){
-          //  printf("Person [%d] değenlendiriliyor ,",i);
+            printf("Person [%d] değenlendiriliyor ,",i);
 
             if(people[i].initialFloor == currentFloor && isEligableToEnter(i)){
-                //printf("** onay aldı kat : %d ** \n",currentFloor); 
+                printf("** onay aldı kat : %d ** \n",currentFloor); 
                 printPersonInfo(i,2);
                 people[i].priority = 2;
                 currentWeight += people[i].weight;
@@ -312,7 +302,7 @@ class ElevatorMonitor:public Monitor{
                 change++;
             }
             else if(people[i].initialFloor == currentFloor){
-           //     printf("** onay alamadı kat: %d **\n",currentFloor);
+                printf("** onay alamadı kat: %d **\n",currentFloor);
                 //girmesi lazım ama giremiyo
                 terkedilmislerList.push_back(i);
                 terkedilmislerList.sort();
@@ -322,7 +312,7 @@ class ElevatorMonitor:public Monitor{
         updateDestination();
 
         if(change>0){
-          //  printf("yolcu alma: ");
+            printf("yolcu alma: ");
             printElevatorInfo(); 
             change = 0;
         }
@@ -343,9 +333,15 @@ class ElevatorMonitor:public Monitor{
 
         if(change >0){
             updateDestination();
-          //  printf("yolcu bırakma: ");
+            printf("yolcu bırakma: ");
             printElevatorInfo();
             change = 0;
+        }
+
+        if(destinationList.size() == 0){
+            printf("destinationn kalmadı \n");
+            updateNumbers();
+            direction =0;
         }
        
 
@@ -364,11 +360,11 @@ bool whileConst = true;
 int simge = 0;
 void *elevatorController(void *){
 
-    //printf("ElevatorController starts working\n");
+    printf("ElevatorController starts working\n");
 
     while(peopleServed< num_people && simge<5){
-        if(elMon.getDirection() == 0){
-            while(elMon.getPeopleInQ() == 0 && elMon.getPeopleInE() == 0 ){
+        if(1){
+            while(elMon.getPeopleInQ() == 0 && elMon.getPeopleInE() == 0){
                 simge++;
                 if(simge>4){
                     elMon.updateNumbers();
@@ -380,10 +376,10 @@ void *elevatorController(void *){
                 usleep(idleTime);
             }
 
-            //elMon.debugForSimge();
+           // elMon.debugForSimge();
             int y = elMon.firstInQ(); //gidilecek
             int x = elMon.getCurrentFloor();
-         //   printf( "Y : %d , x : %d \n",y,x);
+            printf( "Y : %d , x : %d \n",y,x);
             if(y < 0){
                 whileConst = false;
                 break;
@@ -398,9 +394,11 @@ void *elevatorController(void *){
                 elMon.elevatorDown();
             }
 
+            printf("Yolcu alma kontrol? %d \n", x);
             
             elMon.yolcuAlmaVakti();
 
+            printf("YOlcu bırakma kontrol %d \n",x);
             elMon.yolcuBirakmaVakti();
 
             if(peopleServed >= num_people){
@@ -409,6 +407,7 @@ void *elevatorController(void *){
                 break;
             }
             
+
             elMon.setDirection(0);
         }
         
@@ -450,6 +449,9 @@ int main(){
         temp.id=i;
         scanf("%d %d %d %d ", &temp.weight,&temp.initialFloor, &temp.destinationFloor, &temp.pr);
         temp.priority = 0;
+        temp.destination = 1;
+        if(temp.initialFloor > temp.destinationFloor)
+            temp.destination = -1;
         people[i] = temp;
 
     }
