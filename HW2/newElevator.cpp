@@ -167,12 +167,14 @@ class ElevatorMonitor:public Monitor{
 
     void newPerson(int x){
 
-        printf("inside new person funct %d\n",x);
 
         while(currentlyAdding != 0){
             canAdd.wait();
         }
         currentlyAdding++;
+
+        printf("inside new person funct %d\n",x);
+
 
         if(npeopleinQ == 0 && nPeopleinElevator == 0){
             //ilk
@@ -194,13 +196,20 @@ class ElevatorMonitor:public Monitor{
 
             while(direction != people[x].direction && direction != 0){
                 //aynı yolda degiller
+                currentlyAdding--;
+                canAdd.notify();
+
+
                 printf("Not in the same direction. %d Waiting..........\n",x);
-                isAvailable.wait();
+                return;
             }
 
             while(!isEligableToEnter(x)){
+                currentlyAdding--;
+                canAdd.notify();
+                
                 printf("Not eligible. %d Waiting..........\n",x);
-                isAvailable.wait();
+                return;
             }
                 
             printf("%d adding to the Q. \n",x);
@@ -214,6 +223,8 @@ class ElevatorMonitor:public Monitor{
             
         }
 
+        printf("%d notifiyung \n");
+
         currentlyAdding--;
         canAdd.notify();
 
@@ -224,6 +235,8 @@ class ElevatorMonitor:public Monitor{
         currentFloor++;
         direction = 1;
         printf("Move up:  ");
+        if(* destinationList.begin() == currentFloor)
+            destinationList.pop_front();
         printElevatorInfo();
     }
 
@@ -232,6 +245,8 @@ class ElevatorMonitor:public Monitor{
         currentFloor--;
         direction  = -1;
         printf("Move down: ");
+        if(* destinationList.end() == currentFloor)
+            destinationList.pop_back();
         printElevatorInfo();
 
     }
@@ -247,7 +262,7 @@ class ElevatorMonitor:public Monitor{
 
         for(int i = 0 ; i < num_people; i++){
             
-            if(people[i].initialFloor == currentFloor){
+            if(people[i].initialFloor == currentFloor && people[i].status == 1){
                 if(!canGetIn(i)){
                     printf("%dth cant get in to elevator\n",i);
                     people[i].status = 0;
@@ -289,9 +304,9 @@ class ElevatorMonitor:public Monitor{
 
         while(peopleServed < num_people){
             while(destinationList.size() == 0){
-                printf("Empty destination list, waiting & notifiying...\n");
+             //   printf("Empty destination list, waiting & notifiying... %d\n", peopleServed);
                 usleep(idleTime);
-                isAvailable.notifyAll();
+               // isAvailable.notifyAll();
             }
 
             printf("Current floor = %d , Destination = %d\n",currentFloor,* destinationList.begin());
@@ -327,9 +342,10 @@ void* passengerCreator(void * t){
     long x = (long) t;
     printf("Creating passenger %d\n",x);
     
-    while(people[x].status == 0){
+    while(people[x].status !=  -1){
         elMon.newPerson((int) x);
-
+        sleep(2);
+        printf("******* THE status of %d, is %d", x, people[x].status);
     }
 
 }
