@@ -30,16 +30,15 @@ class ElevatorMonitor:public Monitor{
     int npeopleinQ;
     int currentFloor;
     int nPeopleinElevator;
-    int peopleServed;
     std::list<int> destinationList;
 
     Condition canAdd;
-    Condition isAvailable;
+    Condition thereIsChange;
 
     int currentlyAdding ;
 
     public:
-    ElevatorMonitor(): canAdd(this), isAvailable(this){
+    ElevatorMonitor(): canAdd(this), thereIsChange(this){
         currentWeight = 0;
         direction = 0;
         npeopleinQ = 0;
@@ -51,10 +50,11 @@ class ElevatorMonitor:public Monitor{
 
     bool isEligableToEnter(int x){
 
-        printf("IsEligible %d, direction = %d , nPeopleinE = %d, initialF = %d , currentF = %d \n",x,direction,nPeopleinElevator,people[x].initialFloor,currentFloor);
-        if(direction == 0 || npeopleinQ == 0){
+       // printf("IsEligible %d, direction = %d , PDirec %d , nPeopleinE = %d, nPeopleinQ = %d, initialF = %d , currentF = %d \n",x,direction,people[x].direction,nPeopleinElevator,npeopleinQ,people[x].initialFloor,currentFloor);
+        if(direction == 0 || (npeopleinQ == 0 && nPeopleinElevator == 0)){
             return true;
         }
+        
         if(people[x].direction == direction){
             if(direction == 1 && people[x].initialFloor >= currentFloor){
                 return true;
@@ -62,8 +62,16 @@ class ElevatorMonitor:public Monitor{
             else if(direction == -1 && people[x].initialFloor <= currentFloor){
                 return true;
             }
+            else{
+
+                return false;
+            }
         }
-        else return false;
+        else{
+         //   printf("false\n");
+            return false;
+        }
+        return false;
     }
 
         void printElevatorInfo(){
@@ -81,17 +89,24 @@ class ElevatorMonitor:public Monitor{
 
         int t = destinationList.size();
         
+        if(direction == -1)
+            destinationList.reverse();
+
 
         for(std::list<int>::iterator i = destinationList.begin(); i != destinationList.end(); i++){
             --t;
-            if(*i == currentFloor) 
-                continue;
+             if(*i == currentFloor) 
+                 continue;
             if(t == 0)
                 printf("%d", *i);
             else
                 printf("%d,", *i);
             
         }
+
+        if(direction == -1)
+            destinationList.reverse();
+
         printf(")\n");
     }
 
@@ -119,19 +134,6 @@ class ElevatorMonitor:public Monitor{
     void updateDestination(){
 
         int t = destinationList.size();
-
-        printf("\nUpdate Destination Function Before ** \n");
-        for(std::list<int>::iterator i = destinationList.begin(); i != destinationList.end(); i++){
-            --t;
-            if(t == 0)
-                printf("%d", *i);
-            else
-                printf("%d,", *i);
-            
-        }
-
-        printf("\n");
-
         destinationList.clear();
         for(int i = 0; i<num_people;i++){
             if(people[i].status == 1 ){
@@ -144,7 +146,7 @@ class ElevatorMonitor:public Monitor{
     if(destinationList.size()>0){
         destinationList.sort();
         destinationList.unique();
-        }
+        
         if(direction == 0){
             direction = -1;
             if(currentFloor <= * destinationList.begin()){
@@ -152,24 +154,11 @@ class ElevatorMonitor:public Monitor{
             }
         }
 
-        if(direction == -1)
-            destinationList.reverse();
-
+        
 
         t = destinationList.size();
-
-        printf( "\n After:: \n" );
-        for(std::list<int>::iterator i = destinationList.begin(); i != destinationList.end(); i++){
-            --t;
-            
-            if(t == 0)
-                printf("%d", *i);
-            else
-                printf("%d,", *i);
-            
-        }
-        printf("\n");
-        
+    }
+    else direction = 0;
         
     }
 
@@ -180,12 +169,9 @@ class ElevatorMonitor:public Monitor{
     }
 
     void startAdding(int x){
-        __synchronized__;
-        printf("******************** Started adding**********************\n");
 
         while(currentlyAdding || !isEligableToEnter(x)){
-            printf("waiting...\n");
-            canAdd.wait();
+            sleep(5/100);
         }
         currentlyAdding++;
 
@@ -200,20 +186,35 @@ class ElevatorMonitor:public Monitor{
 
     }
 
-    void finishAdding(){
-        __synchronized__;
+    void finishAdding(int x){
        
-        canAdd.notifyAll();
+        //canAdd.notifyAll();
+        // printf("----- inside finished adding\n");
 
+        while(people[x].status != -1){
+
+            // printf("----- Controlling status... \n");
+            
+            if(people[x].status == 0){
+                // printf("----- Status is zero %d\n",x);
+
+                startAdding(x);
+            }
+            else{
+                // printf("----- sleeping %d\n",x);
+              //  thereIsChange.wait();
+              sleep(1);
+            }
+        }
+
+        // printf("----- Finished adding %d \n",x);
     }
 
     void moveUp(){
 
         currentFloor++;
         direction = 1;
-        printf("Move up:  ");
-        if(* destinationList.begin() == currentFloor)
-            destinationList.pop_front();
+     //   printf("Move up:  ");
         printElevatorInfo();
     }
 
@@ -221,9 +222,8 @@ class ElevatorMonitor:public Monitor{
 
         currentFloor--;
         direction  = -1;
-        printf("Move down: ");
-        if(* destinationList.end() == currentFloor)
-            destinationList.pop_back();
+    //    printf("Move down: ");
+
         printElevatorInfo();
 
     }
@@ -236,22 +236,24 @@ class ElevatorMonitor:public Monitor{
     }
     void yolcuAlmaVakti(){
 
-
         for(int i = 0 ; i < num_people; i++){
             
             if(people[i].initialFloor == currentFloor && people[i].status == 1){
                 if(!canGetIn(i)){
-                    printf("%dth cant get in to elevator\n",i);
+                //    printf("%dth cant get in to elevator\n",i);
                     people[i].status = 0;
+                    npeopleinQ--;
                     updateDestination();
+                  //  thereIsChange.notifyAll();
                     continue;
                 }
                 else{
-                printf("%dth CAN get in to elevator\n",i);
+            //    printf("%dth CAN get in to elevator\n",i);
                 people[i].status = 2;
                 currentWeight += people[i].weight;
                 nPeopleinElevator ++;
                 npeopleinQ--;
+              //  thereIsChange.notifyAll();
                 updateDestination();
                 printPersonInfo(i,2);
                 printElevatorInfo(); 
@@ -268,12 +270,15 @@ class ElevatorMonitor:public Monitor{
                 currentWeight -= people[i].weight;
                 nPeopleinElevator--;
                 peopleServed++;
+               // thereIsChange.notifyAll();
 
             updateDestination();
             printPersonInfo(i,3);
             printElevatorInfo();
             }
         }
+
+        
     
     }
 
@@ -295,21 +300,15 @@ class ElevatorMonitor:public Monitor{
     }
 
     void controller(){
-        __synchronized__ ;
 
         while(peopleServed < num_people){
             while(destinationList.size() == 0){
-             //   printf("Empty destination list, waiting & notifiying... %d\n", peopleServed);
                  usleep(idleTime);
-                // currentlyAdding = 0;
-                // canAdd.notifyAll();
-                // isAvailable.notifyAll();
-                 printf("Notified\n");
-            
-                canAdd.notifyAll();
+            //    printf("Notified\n");
+                sleep(1);
             }
 
-            printf("Current floor = %d , Destination = %d\n",currentFloor,* destinationList.begin());
+           // printf("Current floor = %d , Destination = %d\n",currentFloor,* destinationList.begin());
             if(currentFloor < * destinationList.begin()){
                 usleep(travelTime);
                 moveUp();
@@ -319,16 +318,20 @@ class ElevatorMonitor:public Monitor{
                 MoveDown();
             }
 
-            else{
-                printf("same floor gang,%d\n",npeopleinQ) ;
-            }
-            printf("Elevator moveddddddd\n");
-
-            if(nPeopleinElevator >0)
+            if(nPeopleinElevator >0){
                 yolcuBirakmaVakti();
+            }
 
-            if(npeopleinQ > 0)
+            if(npeopleinQ > 0){
                 yolcuAlmaVakti();
+            }
+            if(peopleServed == num_people){
+                break;
+            }
+
+            if(npeopleinQ == 0 && nPeopleinElevator == 0){
+                direction = 0;
+            }
         }
     }
 
@@ -337,7 +340,6 @@ class ElevatorMonitor:public Monitor{
 ElevatorMonitor elMon;
 
 void *elevatorController(void *){
-    printf("Calling controller\n");
     elMon.controller();
 
 }
@@ -348,8 +350,7 @@ void* passengerCreator(void * t){
     
     elMon.startAdding(x);
    // elMon.newPerson(x);
-    printf("??? \n");
-    elMon.finishAdding();
+    elMon.finishAdding(x);
 }
 
 
@@ -360,7 +361,7 @@ int main(){
 
     scanf("%d %d %d %d %d %d %d", &num_floors, &num_people,&weight_capacity, &person_capacity, &travelTime, &idleTime, &inoutTime);
 
-    printf("%d %d %d %d %d %d %d\n", num_floors, num_people,weight_capacity, person_capacity, travelTime, idleTime, inoutTime);
+   // printf("%d %d %d %d %d %d %d\n", num_floors, num_people,weight_capacity, person_capacity, travelTime, idleTime, inoutTime);
 
     people= new Person[num_people];
 
@@ -378,7 +379,7 @@ int main(){
     }
 
     passengers = new pthread_t[num_people];
-    printf("Input succesfully taken.\n");   
+  //  printf("Input succesfully taken.\n");   
     for(int i = 0 ; i<num_people; i++){
         Person temp = people[i];
         //printf("%d %d %d %d\n", temp.weight,temp.initialFloor, temp.destinationFloor, temp.priority);
@@ -389,7 +390,6 @@ int main(){
     }
 
 
-    printf("Treads are created.\n");
 
     for (int i = 0; i < num_people; i++) {
         pthread_join(passengers[i], NULL);
