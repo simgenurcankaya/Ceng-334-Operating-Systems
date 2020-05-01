@@ -167,23 +167,27 @@ class ElevatorMonitor:public Monitor{
 
     void newPerson(int x){
 
+        __synchronized__ ;
+
+        printf("%d inside newPerson\n",x);
 
         while(currentlyAdding != 0){
+            printf("*** %d waiting canAdd\n",x);
             canAdd.wait();
         }
         currentlyAdding++;
 
-        printf("inside new person funct %d\n",x);
+        printf("*** inside new person funct %d\n",x);
 
 
         if(npeopleinQ == 0 && nPeopleinElevator == 0){
             //ilk
-            printf("First person to add %d\n",x);
+            printf("*** First person to add %d\n",x);
 
             people[x].status = 1;
-            direction = people[x].direction;
+            direction = 1;
             destinationList.push_back(people[x].initialFloor);
-            printf("Person %d : ",x);
+            printf("*** Person %d : ",x);
             printPersonInfo(x,1);
             printElevatorInfo();
             npeopleinQ++;
@@ -192,29 +196,24 @@ class ElevatorMonitor:public Monitor{
         else{
 
             //ilk değilse
-            printf("Not first person to add %d\n",x);
+            printf("*** Not first person to add %d\n",x);
 
             while(direction != people[x].direction && direction != 0){
                 //aynı yolda degiller
-                currentlyAdding--;
-                canAdd.notify();
+                printf("*** Not in the same direction. %d Waiting..........\n",x);
 
+                isAvailable.wait();
 
-                printf("Not in the same direction. %d Waiting..........\n",x);
-                return;
             }
 
             while(!isEligableToEnter(x)){
-                currentlyAdding--;
-                canAdd.notify();
-                
-                printf("Not eligible. %d Waiting..........\n",x);
-                return;
+                printf("*** Not eligible. %d Waiting..........\n",x);
+                isAvailable.wait();
             }
                 
-            printf("%d adding to the Q. \n",x);
+            printf("** %d adding to the Q. \n",x);
             people[x].status = 1;
-            printf("Person %d : ",x);
+            printf("*** Person %d : ",x);
             updateDestination();
             printPersonInfo(x,1);
             printElevatorInfo();
@@ -223,11 +222,16 @@ class ElevatorMonitor:public Monitor{
             
         }
 
-        printf("%d notifiyung \n");
+        printf("*** %d notifiyung \n",x);
 
         currentlyAdding--;
         canAdd.notify();
 
+    }
+
+
+    void finishAdding(){
+        
     }
 
     void moveUp(){
@@ -299,14 +303,37 @@ class ElevatorMonitor:public Monitor{
     
     }
 
+    void yeniYolcuAvcisi(){
+        int added = 0;
+        for(int i  = 0 ; i< num_people ; i++){
+            if(people[i].status == 0 ){
+                if(added == 0){
+                    newPerson(i);
+                    added++;
+                }
+                else{
+                    newPerson(i);
+                    added++;
+                    }
+
+            }
+        }
+    }
+
     void controller(){
+        __synchronized__ ;
 
 
         while(peopleServed < num_people){
             while(destinationList.size() == 0){
              //   printf("Empty destination list, waiting & notifiying... %d\n", peopleServed);
-                usleep(idleTime);
-               // isAvailable.notifyAll();
+                 usleep(idleTime);
+                // currentlyAdding = 0;
+                // canAdd.notifyAll();
+                // isAvailable.notifyAll();
+                // printf("Notified\n");
+                direction = 0;
+                yeniYolcuAvcisi();
             }
 
             printf("Current floor = %d , Destination = %d\n",currentFloor,* destinationList.begin());
@@ -319,6 +346,7 @@ class ElevatorMonitor:public Monitor{
                 MoveDown();
             }
             printf("Elevator moveddddddd\n");
+
             if(nPeopleinElevator >0)
                 yolcuBirakmaVakti();
 
@@ -342,11 +370,8 @@ void* passengerCreator(void * t){
     long x = (long) t;
     printf("Creating passenger %d\n",x);
     
-    while(people[x].status !=  -1){
         elMon.newPerson((int) x);
-        sleep(2);
-        printf("******* THE status of %d, is %d", x, people[x].status);
-    }
+ //       sleep(2);
 
 }
 
@@ -380,7 +405,7 @@ int main(){
     for(int i = 0 ; i<num_people; i++){
         Person temp = people[i];
         //printf("%d %d %d %d\n", temp.weight,temp.initialFloor, temp.destinationFloor, temp.priority);
-        pthread_create(&(passengers[i]), NULL, passengerCreator, (void *) i);
+        pthread_create(passengers+i, NULL, passengerCreator, (void *) i);
 
     }
 
