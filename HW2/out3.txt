@@ -1,0 +1,9 @@
+Person (0, lf, 2 -> 1, 50) made a request
+Elevator (Moving-up, 0, 0, 0 -> 2)
+Elevator (Moving-up, 0, 0, 1 -> 2)
+Elevator (Moving-up, 0, 0, 2 -> )
+Person (0, lf, 2 -> 1, 50) entered the elevator
+Elevator (Moving-up, 50, 1, 2 -> 1)
+Elevator (Moving-down, 50, 1, 1 -> )
+Person (0, lf, 2 -> 1, 50) has left the elevator
+Elevator (Idle, 0, 0, 1 -> )
