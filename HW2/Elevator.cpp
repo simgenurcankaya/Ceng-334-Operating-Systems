@@ -79,6 +79,8 @@ class ElevatorMonitor:public Monitor{
         printf("Elevator (");
         if(destinationList.size() == 0)
             printf("Idle, ");
+        else if(destinationList.size() == 1 &&  * destinationList.begin() == currentFloor)
+            printf("Idle, ");
         else if(direction == 1)
             printf("Moving-up, "); 
         else if(direction == -1)
